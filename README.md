@@ -86,6 +86,73 @@ npm start
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+## Collaboration Guidelines
+
+### Setting Up for Collaboration
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/room-management-system.git
+   cd room-management-system
+   ```
+
+2. **Set Up Remote**
+   ```bash
+   # Add the original repository as upstream
+   git remote add upstream https://github.com/ORIGINAL_OWNER/room-management-system.git
+   
+   # Verify remotes
+   git remote -v
+   ```
+
+3. **Keep Your Fork Updated**
+   ```bash
+   # Fetch changes from upstream
+   git fetch upstream
+   
+   # Switch to main branch
+   git checkout main
+   
+   # Merge upstream changes
+   git merge upstream/main
+   ```
+
+### Best Practices for Collaboration
+
+1. **Branch Management**
+   - Create feature branches for new features
+   - Create bugfix branches for bug fixes
+   - Use descriptive branch names (e.g., `feature/user-authentication`, `bugfix/login-error`)
+
+2. **Commit Messages**
+   - Use clear and descriptive commit messages
+   - Follow the format: `type(scope): description`
+   - Example: `feat(auth): add user login functionality`
+
+3. **Code Review Process**
+   - Review code before submitting PRs
+   - Ensure all tests pass
+   - Update documentation if needed
+   - Respond to review comments promptly
+
+4. **Communication**
+   - Use GitHub Issues for bug reports and feature requests
+   - Use Pull Request comments for code-related discussions
+   - Keep the team informed about major changes
+
+5. **Development Workflow**
+   - Pull latest changes before starting new work
+   - Create new branches from updated main
+   - Test changes locally before pushing
+   - Keep PRs focused and manageable in size
+
+### Getting Help
+
+- Open an issue for bugs or feature requests
+- Check existing issues before creating new ones
+- Use the issue templates when available
+- Tag relevant team members when needed
+
 ## License
 
 This project is licensed under the MIT License. 
