@@ -1,7 +1,8 @@
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
-import { Container, Row, Col, Card } from 'react-bootstrap';
+import { Card, Col, Container, Row } from 'react-bootstrap';
 import { useSelector } from 'react-redux';
+import { Navigate, Outlet } from 'react-router-dom';
+import backgroundImage from '../2021-11-24_2021-11-21_about.jpg'; // Import the background image
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AuthLayout = () => {
@@ -13,10 +14,23 @@ const AuthLayout = () => {
   }
 
   return (
-    <div className="auth-page bg-light">
+    // Apply background image styles to the main container
+    <div 
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '100vh', // Ensure it covers the full viewport height
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem 0' // Add some vertical padding
+      }}
+    >
       <Container>
         <Row className="vh-100 d-flex justify-content-center align-items-center">
-          <Col md={8} lg={6} xl={5}>
+          <Col md={10} lg={8} xl={7}>
             <Card className="shadow-lg border-0 rounded-lg mt-5">
               <Card.Header className="bg-primary text-white text-center py-3">
                 <h3 className="my-2">Room and Facility Management System</h3>

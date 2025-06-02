@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { login, reset } from '../../redux/slices/authSlice';
 
+import kpaLogo from '../../kerala-police-academy-logo-png_seeklogo-533845.png'; // Import the KPA logo image
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -47,9 +49,12 @@ const Login = () => {
   };
 
   return (
+    // Removed the outer Container, Row, and Col
     <>
-      <h4 className="text-center mb-4">Sign In</h4>
-      
+      <h2 className="text-center mb-4">Login</h2>
+      <div className="text-center mb-4">
+        <img src={kpaLogo} alt="Kerala Police Academy Logo" style={{ maxWidth: '150px' }} />
+      </div>
       {error && <Alert variant="danger">{error}</Alert>}
       
       <Form noValidate validated={validated} onSubmit={handleSubmit}>
