@@ -40,17 +40,13 @@ router.get(
 router.get('/:id', protect, getRequest);
 router.post('/:id/notes', protect, authorize('admin', 'systemAdmin', 'blockHead'), addNote); // Assuming block heads can add notes too
 
-// Routes accessible by Admin and System Admin only
-// Removed router.use(authorize('admin', 'systemAdmin'));
-router.post('/', protect, authorize('admin', 'systemAdmin', 'blockHead'), createRequest);
-router.put('/:id', protect, authorize('admin', 'systemAdmin'), updateRequest);
-router.post('/:id/cancel', protect, authorize('admin', 'systemAdmin'), cancelRequest);
-router.delete('/:id', protect, authorize('admin', 'systemAdmin'), deleteRequest);
+// Routes accessible by Admin only for creating requests
+router.post('/', protect, authorize('admin', 'systemAdmin'), createRequest);
 
-// Routes accessible by Admin and Block Head only
-// Removed router.use(authorize('admin', 'blockHead'));
-router.post('/:id/assign', protect, authorize('admin', 'blockHead'), assignBeds);
-router.post('/:id/reject', protect, authorize('admin', 'blockHead'), rejectRequest);
-router.patch('/:id/status', protect, authorize('admin', 'blockHead', 'systemAdmin'), updateRequestStatus);
+// Routes accessible by Block Head only for handling requests
+router.put('/:id', protect, authorize('blockHead', 'systemAdmin'), updateRequest);
+router.post('/:id/cancel', protect, authorize('blockHead', 'systemAdmin'), cancelRequest);
+router.post('/:id/reject', protect, authorize('blockHead', 'systemAdmin'), rejectRequest);
+router.patch('/:id/status', protect, authorize('blockHead', 'systemAdmin'), updateRequestStatus);
 
 module.exports = router;

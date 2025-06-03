@@ -22,6 +22,7 @@ const bedRoutes = require('./routes/bed.routes');
 const requestRoutes = require('./routes/request.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const courseRoutes = require('./routes/course.routes');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -32,6 +33,7 @@ app.use('/api/beds', bedRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/courses', courseRoutes);
 
 // Default route
 app.get('/', (req, res) => {

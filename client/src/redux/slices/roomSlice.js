@@ -4,11 +4,13 @@ import roomService from '../../services/roomService';
 // Async thunks
 export const fetchRooms = createAsyncThunk(
   'rooms/fetchRooms',
-  async (_, { rejectWithValue }) => {
+  async ({ blockId } = {}, thunkAPI) => {
     try {
-      return await roomService.getRooms();
+      const token = thunkAPI.getState().auth.token;
+      const data = await roomService.getRooms(token, blockId);
+      return data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch rooms');
+      return thunkAPI.rejectWithValue(error.response?.data?.message || 'Failed to fetch rooms');
     }
   }
 );
@@ -100,7 +102,7 @@ const roomSlice = createSlice({
       })
       .addCase(fetchRooms.fulfilled, (state, action) => {
         state.loading = false;
-        state.rooms = action.payload;
+        state.rooms = action.payload.data;
       })
       .addCase(fetchRooms.rejected, (state, action) => {
         state.loading = false;

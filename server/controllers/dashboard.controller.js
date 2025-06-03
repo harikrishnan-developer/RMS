@@ -58,17 +58,17 @@ exports.getAdminStats = async (req, res) => {
 
       // Count beds in these rooms
       const totalBeds = await Bed.countDocuments({ room: { $in: roomIds } });
-      const availableBeds = await Bed.countDocuments({ 
+        const availableBeds = await Bed.countDocuments({ 
         room: { $in: roomIds },
-        status: 'Available'
-      });
+          status: 'Available'
+        });
 
-      return {
-        id: block._id,
-        name: block.name,
-        available: availableBeds,
-        total: totalBeds
-      };
+        return {
+          id: block._id,
+          name: block.name,
+          available: availableBeds,
+          total: totalBeds
+        };
     }));
 
     res.json({
@@ -106,7 +106,7 @@ exports.getBlockHeadStats = async (req, res) => {
         status: 'Available'
       }),
       AccommodationRequest.countDocuments({
-        block: { $in: blockIds },
+        blockPreference: { $in: blockIds },
         status: 'Pending'
       })
     ]);

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Button, Card, Col, Row } from 'react-bootstrap';
-import { FaBed, FaBuilding, FaChartBar, FaClipboardList, FaDoorOpen, FaUserPlus } from 'react-icons/fa';
+import { FaBed, FaBook, FaBuilding, FaChartBar, FaClipboardList, FaDoorOpen, FaUserPlus } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -131,6 +131,32 @@ const SystemAdminDashboard = () => {
               <div className="mt-auto">
                 <Button as={Link} to="/management/select-room-for-beds" variant="outline-warning">
                   Manage Beds
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* Course Management Card */}
+        <Col lg={4} md={6} className="mb-4">
+          <Card className="h-100 dashboard-card">
+            <Card.Body className="d-flex flex-column">
+              <div className="d-flex align-items-center mb-3">
+                <div className="icon-bg bg-dark text-white p-3 rounded me-3">
+                  <FaBook size={24} />
+                </div>
+                <div>
+                  <h5 className="mb-0">Course Management</h5>
+                  <small className="text-muted">Manage courses</small>
+                </div>
+              </div>
+              <Card.Text>
+                {/* Optional: Add course count stat if available */}
+                Manage course details and information.
+              </Card.Text>
+              <div className="mt-auto">
+                <Button as={Link} to="/management/courses" variant="outline-dark">
+                  Manage Courses
                 </Button>
               </div>
             </Card.Body>

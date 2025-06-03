@@ -10,8 +10,7 @@ const BlockFormModal = ({ onClose, data }) => {
   const initialState = {
     name: '',
     type: 'Dormitory',
-    description: '',
-    blockHead: ''
+    description: ''
   };
 
   const [formData, setFormData] = useState(initialState);
@@ -21,6 +20,7 @@ const BlockFormModal = ({ onClose, data }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.blocks || {});
   const { blockHeads = [] } = useSelector((state) => state.users || {});
+  const { user: currentUser } = useSelector((state) => state.auth);
 
   // Fetch block heads only once when component mounts
   useEffect(() => {
@@ -136,29 +136,31 @@ const BlockFormModal = ({ onClose, data }) => {
             />
           </Form.Group>
 
-          <Form.Group className="mb-3" controlId="blockHead">
-            <Form.Label>Block Head</Form.Label>
-            <Form.Select
-              name="blockHead"
-              value={formData.blockHead}
-              onChange={handleChange}
-              required
-            >
-              <option value="">-- Select Block Head --</option>
-              {Array.isArray(blockHeads) && blockHeads.length > 0 ? (
-                blockHeads.map(user => (
-                  <option key={user._id} value={user._id}>
-                    {user.name || 'Unnamed'} ({user.email || 'No email'})
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>Loading block heads...</option>
-              )}
-            </Form.Select>
-            <Form.Control.Feedback type="invalid">
-              Please select a block head.
-            </Form.Control.Feedback>
-          </Form.Group>
+          {/* Show block head assignment only in edit mode for admins */}
+          {isEditMode && currentUser?.role === 'admin' && (
+            <Form.Group className="mb-3" controlId="blockHead">
+              <Form.Label>Block Head</Form.Label>
+              <Form.Select
+                name="blockHead"
+                value={formData.blockHead}
+                onChange={handleChange}
+              >
+                <option value="">-- Select Block Head --</option>
+                {Array.isArray(blockHeads) && blockHeads.length > 0 ? (
+                  blockHeads.map(user => (
+                    <option key={user._id} value={user._id}>
+                      {user.name || 'Unnamed'} ({user.email || 'No email'})
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>Loading block heads...</option>
+                )}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                Assign a block head to manage this block
+              </Form.Text>
+            </Form.Group>
+          )}
 
           <div className="d-flex justify-content-end">
             <Button variant="secondary" className="me-2" onClick={onClose}>

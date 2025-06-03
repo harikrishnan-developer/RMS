@@ -69,10 +69,51 @@ export const deleteBed = createAsyncThunk(
   }
 );
 
+export const assignBed = createAsyncThunk(
+  'beds/assign',
+  async ({ bedId, occupantData }, { rejectWithValue }) => {
+    try {
+      const response = await bedService.assignBed(bedId, occupantData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to assign bed');
+    }
+  }
+);
+
+export const vacateBed = createAsyncThunk(
+  'beds/vacateBed',
+  async ({ bedId, earlyVacateData }, { rejectWithValue }) => {
+    try {
+      console.log('Sending vacate request with data:', { bedId, earlyVacateData });
+      const response = await bedService.vacateBed(bedId, earlyVacateData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to vacate bed');
+    }
+  }
+);
+
+export const fetchEarlyVacateHistory = createAsyncThunk(
+  'beds/fetchEarlyVacateHistory',
+  async (_, { rejectWithValue }) => {
+    try {
+      console.log('Fetching early vacate history...');
+      const response = await bedService.getEarlyVacateHistory();
+      console.log('Early vacate history response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error fetching early vacate history:', error);
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch early vacate history');
+    }
+  }
+);
+
 const initialState = {
   beds: [],
   roomBeds: [],
   currentBed: null,
+  earlyVacateHistory: [],
   loading: false,
   error: null,
   success: false
@@ -89,6 +130,11 @@ const bedSlice = createSlice({
     },
     clearCurrentBed: (state) => {
       state.currentBed = null;
+    },
+    clearBeds: (state) => {
+      state.roomBeds = [];
+      state.loading = false;
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -212,9 +258,65 @@ const bedSlice = createSlice({
       .addCase(deleteBed.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      
+      // assignBed
+      .addCase(assignBed.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(assignBed.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload && action.payload.data) {
+          const updatedBed = action.payload.data;
+          const index = state.roomBeds.findIndex(bed => bed._id === updatedBed._id);
+          if (index !== -1) {
+            state.roomBeds[index] = updatedBed;
+          }
+        }
+      })
+      .addCase(assignBed.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to assign bed';
+      })
+      
+      // vacateBed
+      .addCase(vacateBed.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(vacateBed.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload && action.payload.data) {
+          const updatedBed = action.payload.data;
+          const index = state.roomBeds.findIndex(bed => bed._id === updatedBed._id);
+          if (index !== -1) {
+            state.roomBeds[index] = updatedBed;
+          }
+        }
+      })
+      .addCase(vacateBed.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to vacate bed';
+      })
+      
+      // fetchEarlyVacateHistory
+      .addCase(fetchEarlyVacateHistory.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchEarlyVacateHistory.fulfilled, (state, action) => {
+        state.loading = false;
+        console.log('Setting early vacate history:', action.payload);
+        state.earlyVacateHistory = action.payload.data || [];
+      })
+      .addCase(fetchEarlyVacateHistory.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        console.error('Failed to fetch early vacate history:', action.payload);
       });
   }
 });
 
-export const { resetBedState, clearCurrentBed } = bedSlice.actions;
+export const { resetBedState, clearCurrentBed, clearBeds } = bedSlice.actions;
 export default bedSlice.reducer;

@@ -7,9 +7,9 @@ const API_ENDPOINT = '/requests';
 const getRequests = async () => {
   try {
     console.log('Fetching requests...');
-    const response = await api.get(API_ENDPOINT);
+  const response = await api.get(API_ENDPOINT);
     console.log('Requests response:', response.data);
-    return response.data.data;
+  return response.data.data;
   } catch (error) {
     console.error('Error fetching requests:', error);
     throw error;
@@ -28,7 +28,7 @@ const getRequestById = async (id) => {
     console.log('Fetching request by ID:', id);
     const response = await api.get(`${API_ENDPOINT}/${id}`);
     console.log('Request response:', response.data);
-    return response.data.data;
+  return response.data.data;
   } catch (error) {
     console.error('Error fetching request:', error);
     throw error;
@@ -39,9 +39,9 @@ const getRequestById = async (id) => {
 const createRequest = async (requestData) => {
   try {
     console.log('Creating request:', requestData);
-    const response = await api.post(API_ENDPOINT, requestData);
+  const response = await api.post(API_ENDPOINT, requestData);
     console.log('Create request response:', response.data);
-    return response.data.data;
+  return response.data.data;
   } catch (error) {
     console.error('Error creating request:', error);
     throw error;
@@ -54,7 +54,7 @@ const updateRequest = async (id, requestData) => {
     console.log('Updating request:', id, requestData);
     const response = await api.put(`${API_ENDPOINT}/${id}`, requestData);
     console.log('Update request response:', response.data);
-    return response.data.data;
+  return response.data.data;
   } catch (error) {
     console.error('Error updating request:', error);
     throw error;
@@ -67,7 +67,7 @@ const updateRequestStatus = async (id, status) => {
     console.log('Updating request status:', id, status);
     const response = await api.patch(`${API_ENDPOINT}/${id}/status`, { status });
     console.log('Update status response:', response.data);
-    return response.data.data;
+  return response.data.data;
   } catch (error) {
     console.error('Error updating request status:', error);
     throw error;
@@ -80,7 +80,7 @@ const deleteRequest = async (id) => {
     console.log('Deleting request:', id);
     const response = await api.delete(`${API_ENDPOINT}/${id}`);
     console.log('Delete request response:', response.data);
-    return response.data.data;
+  return response.data.data;
   } catch (error) {
     console.error('Error deleting request:', error);
     throw error;

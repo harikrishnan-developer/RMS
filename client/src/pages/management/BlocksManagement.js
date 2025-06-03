@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Col, Container, Form, InputGroup, Row, Table } from 'react-bootstrap';
-import { FaDoorOpen, FaEdit, FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaSearch } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import BlockFormModal from '../../components/modals/BlockFormModal';
 import ConfirmationModal from '../../components/modals/ConfirmationModal';
-import { fetchBlocks } from '../../redux/slices/blockSlice';
+import { deleteBlock, fetchBlocks } from '../../redux/slices/blockSlice';
 
 const BlocksManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,27 +16,35 @@ const BlocksManagement = () => {
   const [filteredBlocks, setFilteredBlocks] = useState([]);
 
   const dispatch = useDispatch();
-  const { blocks = [], loading = false, error = null } = useSelector((state) => state.blocks || {});
+  const { blocks, loading, error } = useSelector((state) => state.blocks);
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Fetch blocks when the component mounts
     dispatch(fetchBlocks());
   }, [dispatch]);
 
   useEffect(() => {
-    // Filter blocks based on search term
     if (blocks && Array.isArray(blocks)) {
-      const filtered = blocks.filter(
-        (block) =>
-          (block.name && block.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (block.type && block.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (block.description && block.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (block.blockHead && block.blockHead.name && block.blockHead.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      let filtered = blocks;
+      
+      // If user is a block head, only show their assigned block
+      if (user?.role === 'blockHead' && user?.block) {
+        filtered = blocks.filter(block => block._id === user.block._id);
+      } else {
+        // For other roles, filter based on search term
+        filtered = blocks.filter(block => 
+          block.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          block.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          block.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          block.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      
       setFilteredBlocks(filtered);
+    } else {
+      setFilteredBlocks([]);
     }
-  }, [blocks, searchTerm]);
+  }, [blocks, searchTerm, user]);
 
   const handleAddBlock = () => {
     setSelectedBlock(null);
@@ -55,22 +63,28 @@ const BlocksManagement = () => {
 
   const confirmDelete = () => {
     if (selectedBlock) {
-      // When blockSlice is implemented, uncomment this
-      // dispatch(deleteBlock(selectedBlock._id));
-      console.log('Deleting block:', selectedBlock._id); // Temporary placeholder
+      dispatch(deleteBlock(selectedBlock._id));
       setShowDeleteModal(false);
     }
   };
 
-  const getAvailabilityBadge = (available, total) => {
-    const percentage = (available / total) * 100;
-    
-    if (percentage > 50) {
-      return <Badge bg="success">{available}/{total}</Badge>;
-    } else if (percentage > 20) {
-      return <Badge bg="warning">{available}/{total}</Badge>;
-    } else {
-      return <Badge bg="danger">{available}/{total}</Badge>;
+  const handleModalClose = () => {
+    setShowBlockModal(false);
+    setSelectedBlock(null);
+    // Refresh blocks list after any block operation
+    dispatch(fetchBlocks());
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Active':
+        return <Badge bg="success">Active</Badge>;
+      case 'Under Maintenance':
+        return <Badge bg="warning">Under Maintenance</Badge>;
+      case 'Inactive':
+        return <Badge bg="danger">Inactive</Badge>;
+      default:
+        return <Badge bg="secondary">{status}</Badge>;
     }
   };
 
@@ -82,7 +96,7 @@ const BlocksManagement = () => {
 
   return (
     <Container fluid>
-      <Card className="shadow-sm">
+      <Card className="shadow-sm mb-4">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h4 className="mb-0">Blocks Management</h4>
@@ -93,71 +107,84 @@ const BlocksManagement = () => {
             )}
           </div>
 
-          {error && <p className="text-danger">{error}</p>}
+          {error && <Alert variant="danger">{error}</Alert>}
 
-          <Row className="mb-3">
-            <Col>
-              <InputGroup>
-                <InputGroup.Text>
-                  <FaSearch />
-                </InputGroup.Text>
-                <Form.Control
-                  placeholder="Search by name, type, or description"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </InputGroup>
-            </Col>
-          </Row>
+          {user?.role !== 'blockHead' && (
+            <Row className="mb-3">
+              <Col>
+                <InputGroup>
+                  <InputGroup.Text>
+                    <FaSearch />
+                  </InputGroup.Text>
+                  <Form.Control
+                    placeholder="Search by name, type, status, or description"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </InputGroup>
+              </Col>
+            </Row>
+          )}
 
           <div className="table-responsive">
             <Table striped hover>
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>Block Name</th>
                   <th>Type</th>
-                  <th>Block Head</th>
-                  <th>Rooms (Available/Total)</th>
-                  <th>Beds (Available/Total)</th>
+                  <th>Total Rooms</th>
+                  <th>Available Rooms</th>
+                  <th>Status</th>
+                  <th>Description</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBlocks && filteredBlocks.length > 0 ? (
-                  filteredBlocks.map((block) => (
-                    <tr key={block._id}>
-                      <td>{block.name}</td>
-                      <td>{block.type}</td>
-                      <td>{block.blockHead ? block.blockHead.name : 'Unassigned'}</td>
-                      <td>{getAvailabilityBadge(block.availableRooms, block.totalRooms)}</td>
-                      <td>{getAvailabilityBadge(block.availableBeds, block.totalBeds)}</td>
-                      <td>
-                        <Link to={`/management/rooms/${block._id}`} className="btn btn-outline-info btn-sm me-1">
-                          <FaDoorOpen title="Manage Rooms" />
-                        </Link>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          className="me-1"
-                          onClick={() => handleEditBlock(block)}
+                {filteredBlocks.map((block) => (
+                  <tr key={block._id}>
+                    <td>{block.name}</td>
+                    <td>{block.type}</td>
+                    <td>{block.totalRooms}</td>
+                    <td>{block.availableRooms}</td>
+                    <td>{getStatusBadge(block.status)}</td>
+                    <td>
+                      <div style={{ maxWidth: '200px' }}>
+                        {block.description || 'No description'}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="d-flex gap-2">
+                        <Link
+                          to={`/management/blocks/${block._id}/rooms`}
+                          className="btn btn-outline-primary btn-sm"
                         >
-                          <FaEdit title="Edit Block" />
-                        </Button>
+                          Manage Rooms
+                        </Link>
                         {user?.role === 'systemAdmin' && (
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleDeleteClick(block)}
-                          >
-                            <FaTrash title="Delete Block" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              onClick={() => handleEditBlock(block)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDeleteClick(block)}
+                            >
+                              Delete
+                            </Button>
+                          </>
                         )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredBlocks.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="text-center">
+                    <td colSpan="7" className="text-center py-4">
                       No blocks found
                     </td>
                   </tr>
@@ -171,7 +198,7 @@ const BlocksManagement = () => {
       {/* Block Form Modal */}
       {showBlockModal && (
         <BlockFormModal
-          onClose={() => setShowBlockModal(false)}
+          onClose={handleModalClose}
           data={{ block: selectedBlock }}
         />
       )}
@@ -181,11 +208,12 @@ const BlocksManagement = () => {
         <ConfirmationModal
           show={showDeleteModal}
           title="Delete Block"
-          message={`Are you sure you want to delete ${selectedBlock?.name}? This will also delete all rooms and beds in this block. This action cannot be undone.`}
+          message={`Are you sure you want to delete Block ${selectedBlock?.name}? This action cannot be undone.`}
           confirmButtonText="Delete"
           confirmButtonVariant="danger"
           onConfirm={confirmDelete}
           onCancel={() => setShowDeleteModal(false)}
+          onClose={() => setShowDeleteModal(false)}
         />
       )}
     </Container>

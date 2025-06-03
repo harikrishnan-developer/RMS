@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Alert } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Form, Modal } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
 // Import user actions from userSlice
-import { createUser, updateUser, fetchUsers } from '../../redux/slices/userSlice';
+import { createUser, fetchUsers, updateUser } from '../../redux/slices/userSlice';
 
 const UserFormModal = ({ onClose, data }) => {
   const initialState = {
@@ -19,6 +19,7 @@ const UserFormModal = ({ onClose, data }) => {
   const dispatch = useDispatch();
   // Use Redux state for loading and error
   const { loading, error } = useSelector((state) => state.users);
+  const { user: currentUser } = useSelector((state) => state.auth);
 
   useEffect(() => {
     if (data && data.user) {
@@ -133,19 +134,22 @@ const UserFormModal = ({ onClose, data }) => {
             </Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3" controlId="role">
-            <Form.Label>Role</Form.Label>
-            <Form.Select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              required
-            >
-              <option value="systemAdmin">System Administrator</option>
-              <option value="admin">Administrator</option>
-              <option value="blockHead">Block Head</option>
-            </Form.Select>
-          </Form.Group>
+          {/* Only show role selection for system admins */}
+          {currentUser?.role === 'systemAdmin' && (
+            <Form.Group className="mb-3" controlId="role">
+              <Form.Label>Role</Form.Label>
+              <Form.Select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+              >
+                <option value="systemAdmin">System Administrator</option>
+                <option value="admin">Administrator</option>
+                <option value="blockHead">Block Head</option>
+              </Form.Select>
+            </Form.Group>
+          )}
 
           <div className="d-flex justify-content-end">
             <Button variant="secondary" className="me-2" onClick={onClose}>

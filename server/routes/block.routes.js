@@ -18,20 +18,16 @@ const router = express.Router();
 // Re-route into other resource routers
 router.use('/:blockId/rooms', roomRouter);
 
-// All routes require authentication
-router.use(protect);
+// Public routes
+router.get('/', protect, getBlocks);
+router.get('/:id', protect, getBlock);
+router.get('/:id/stats', protect, getBlockStats);
 
-// Routes accessible by all authenticated users
-router.get('/', getBlocks);
-router.get('/:id', getBlock);
-router.get('/:id/stats', getBlockStats);
+// Routes accessible by System Admin only
+router.post('/', protect, authorize('systemAdmin'), createBlock);
+router.delete('/:id', protect, authorize('systemAdmin'), deleteBlock);
 
-// Routes accessible by admin and system admin
-router.put('/:id', authorize('admin', 'systemAdmin'), updateBlock);
-
-// Routes accessible only by System Admin
-router.use(authorize('systemAdmin'));
-router.post('/', createBlock);
-router.delete('/:id', deleteBlock);
+// Routes accessible by both System Admin and Admin
+router.put('/:id', protect, authorize('systemAdmin', 'admin'), updateBlock);
 
 module.exports = router;

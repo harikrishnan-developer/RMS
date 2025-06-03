@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
-import { Alert, Badge, Button, Card, Col, Row } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Alert, Badge, Button, Card, Col, Container, Row } from 'react-bootstrap';
 import { FaBell, FaCheckCircle, FaClipboardList, FaHourglassHalf, FaTimesCircle } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import EarlyVacateHistory from '../../components/dashboard/EarlyVacateHistory';
+import RequestFormModal from '../../components/modals/RequestFormModal';
 import { fetchAdminStats } from '../../redux/slices/statsSlice';
 
 const AdminDashboard = () => {
   const dispatch = useDispatch();
   const { adminStats: stats, loading, error } = useSelector((state) => state.stats);
+  const [showRequestModal, setShowRequestModal] = useState(false);
 
   useEffect(() => {
     dispatch(fetchAdminStats());
@@ -27,16 +30,22 @@ const AdminDashboard = () => {
   }
 
   return (
-    <>
+    <Container fluid>
+      <Row className="mb-4">
+        <Col>
+          <h4>Admin Dashboard</h4>
+        </Col>
+      </Row>
+
       <Row className="mb-4">
         <Col lg={12}>
           <Card className="shadow-sm">
             <Card.Body>
               <h4>Admin Dashboard</h4>
               <p className="text-muted">
-                Welcome to the admin dashboard. From here, you can manage accommodation requests and view facility status.
+                Welcome to the admin dashboard. From here, you can create new accommodation requests.
               </p>
-              <Button as={Link} to="/management/requests" variant="primary">
+              <Button variant="primary" onClick={() => setShowRequestModal(true)}>
                 Create New Request
               </Button>
             </Card.Body>
@@ -243,7 +252,7 @@ const AdminDashboard = () => {
                           <td>
                             <Button
                               as={Link}
-                              to={`/management/rooms/${block.id}`}
+                              to={`/management/select-room-for-beds/${block.id}`}
                               variant="outline-primary"
                               size="sm"
                             >
@@ -260,7 +269,30 @@ const AdminDashboard = () => {
           </Card>
         </Col>
       </Row>
-    </>
+
+      {/* Early Vacate History Section */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="shadow-sm">
+            <Card.Header className="bg-white">
+              <h5 className="mb-0">Early Vacate Records</h5>
+            </Card.Header>
+            <Card.Body>
+              <EarlyVacateHistory />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Request Form Modal */}
+      {showRequestModal && (
+        <RequestFormModal
+          show={showRequestModal}
+          onClose={() => setShowRequestModal(false)}
+          data={null}
+        />
+      )}
+    </Container>
   );
 };
 

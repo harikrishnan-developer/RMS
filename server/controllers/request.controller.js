@@ -819,9 +819,6 @@ exports.updateRequestStatus = async (req, res) => {
       });
     }
 
-    // Check if the status transition is valid (optional, but good practice)
-    // For simplicity, we'll allow any status update for now, assuming frontend handles valid transitions
-
     // Update status and add handler if applicable
     request.status = status;
 
@@ -839,45 +836,60 @@ exports.updateRequestStatus = async (req, res) => {
       request.assignedBeds = [];
       request.requestHandledBy.blockHead = req.user.id; // Assuming block head completes it
     } else if (status === 'Approved') {
-       // Logic for approving a request (if needed, currently handled in assignBeds)
-       // Ensure handler is set if not already
-       if (!request.requestHandledBy.blockHead && req.user.role === 'blockHead') {
-           request.requestHandledBy.blockHead = req.user.id;
-       }
-        if (!request.requestHandledBy.admin && req.user.role === 'admin') {
-           request.requestHandledBy.admin = req.user.id;
-       }
-
+      // Logic for approving a request
+      if (!request.requestHandledBy.blockHead && req.user.role === 'blockHead') {
+        request.requestHandledBy.blockHead = req.user.id;
+      }
+      if (!request.requestHandledBy.admin && req.user.role === 'admin') {
+        request.requestHandledBy.admin = req.user.id;
+      }
     } else if (status === 'Rejected') {
-       // Logic for rejecting a request (if needed, currently handled in rejectRequest)
-        if (!request.requestHandledBy.blockHead && req.user.role === 'blockHead') {
-           request.requestHandledBy.blockHead = req.user.id;
-       }
-        if (!request.requestHandledBy.admin && req.user.role === 'admin') {
-           request.requestHandledBy.admin = req.user.id;
-       }
-         // Clear assigned room/beds if any were assigned previously
-        request.assignedRoom = null;
-        request.assignedBeds = [];
-         // Add rejection reason if provided (optional, could be in a separate endpoint)
-         // request.rejectionReason = req.body.rejectionReason; 
-
-    } // Add other status transitions if necessary (e.g., 'Cancelled')
+      // Logic for rejecting a request
+      if (!request.requestHandledBy.blockHead && req.user.role === 'blockHead') {
+        request.requestHandledBy.blockHead = req.user.id;
+      }
+      if (!request.requestHandledBy.admin && req.user.role === 'admin') {
+        request.requestHandledBy.admin = req.user.id;
+      }
+      // Clear assigned room/beds if any were assigned previously
+      request.assignedRoom = null;
+      request.assignedBeds = [];
+    }
 
     // Add handler if applicable (general case for other status changes)
-     if (!request.requestHandledBy.admin && req.user.role === 'admin') {
-           request.requestHandledBy.admin = req.user.id;
-       }
-        if (!request.requestHandledBy.blockHead && req.user.role === 'blockHead') {
-           request.requestHandledBy.blockHead = req.user.id;
-       }
-
+    if (!request.requestHandledBy.admin && req.user.role === 'admin') {
+      request.requestHandledBy.admin = req.user.id;
+    }
+    if (!request.requestHandledBy.blockHead && req.user.role === 'blockHead') {
+      request.requestHandledBy.blockHead = req.user.id;
+    }
 
     request.updatedAt = Date.now();
     await request.save();
 
-    // Optionally send notification based on status change
-    // This could be expanded to handle specific status transitions (Approved, Rejected, etc.)
+    // Send notifications based on status change and user role
+    if (req.user.role === 'blockHead') {
+      // If block head approves/rejects, notify admin
+      if (status === 'Approved' || status === 'Rejected') {
+        // Find all admins to notify
+        const admins = await User.find({ role: 'admin' });
+        
+        // Create notifications for each admin
+        for (const admin of admins) {
+          await Notification.create({
+            recipient: admin._id,
+            sender: req.user.id,
+            type: 'Request Update',
+            title: `Request ${status} by Block Head`,
+            message: `Accommodation request (${request.requestNumber}) has been ${status.toLowerCase()} by block head`,
+            relatedTo: {
+              model: 'AccommodationRequest',
+              id: request._id
+            }
+          });
+        }
+      }
+    }
 
     res.status(200).json({
       success: true,

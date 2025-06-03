@@ -17,27 +17,34 @@ api.interceptors.request.use(
     
     if (isAuthenticated) {
       const userData = localStorage.getItem('currentUser');
+      const token = localStorage.getItem('token');
       console.log('User data from localStorage:', userData);
+      console.log('Token from localStorage:', token);
       
-      if (userData) {
+      if (userData && token) {
         try {
           // Ensure userData is properly stringified
           const parsedUser = JSON.parse(userData);
           config.headers['x-user-data'] = JSON.stringify(parsedUser);
+          // Add the JWT token to the Authorization header
+          config.headers['Authorization'] = `Bearer ${token}`;
           console.log('Request headers:', config.headers);
         } catch (error) {
           console.error('Error parsing user data:', error);
           // Clear invalid data
           localStorage.removeItem('isAuthenticated');
           localStorage.removeItem('currentUser');
+          localStorage.removeItem('token');
           window.location.href = '/login';
           return Promise.reject(error);
         }
       } else {
-        // No user data found, redirect to login
+        // No user data or token found, redirect to login
         localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
         window.location.href = '/login';
-        return Promise.reject(new Error('No user data found'));
+        return Promise.reject(new Error('No user data or token found'));
       }
     }
 

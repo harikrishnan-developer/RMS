@@ -4,9 +4,20 @@ import api from '../utils/apiUtils';
 const API_ENDPOINT = '/rooms';
 
 // Get all rooms
-const getRooms = async () => {
-  const response = await api.get(API_ENDPOINT);
-  return response.data.data;
+const getRooms = async (token, blockId) => {
+  const config = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    params: {}
+  };
+
+  if (blockId) {
+    config.params.block = blockId;
+  }
+
+  const response = await api.get(API_ENDPOINT, config);
+  return response.data;
 };
 
 // Get rooms by block ID

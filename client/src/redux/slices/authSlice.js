@@ -5,14 +5,14 @@ import authService from '../../services/authService';
 // Load user from localStorage
 const loadUserFromStorage = () => {
   try {
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    const userStr = localStorage.getItem('currentUser');
-    
-    if (!isAuthenticated || !userStr) {
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const userStr = localStorage.getItem('currentUser');
+  
+  if (!isAuthenticated || !userStr) {
       console.log('No authenticated user found in localStorage');
-      return { isAuthenticated: false, user: null };
-    }
-    
+    return { isAuthenticated: false, user: null };
+  }
+  
     const user = JSON.parse(userStr);
     console.log('Loaded user from localStorage:', user);
     

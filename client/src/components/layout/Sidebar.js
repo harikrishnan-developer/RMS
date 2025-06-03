@@ -2,6 +2,7 @@ import React from 'react';
 import { Nav, Navbar } from 'react-bootstrap';
 import {
     FaBell,
+    FaBook,
     FaBuilding,
     FaClipboardList,
     FaDoorOpen,
@@ -53,6 +54,11 @@ const Sidebar = ({ isOpen }) => {
         path: '/management/requests',
         icon: <FaClipboardList />,
         label: 'Accommodation Requests',
+      },
+      {
+        path: '/management/courses',
+        icon: <FaBook />,
+        label: 'Course Management',
       }
     ];
 
@@ -79,7 +85,7 @@ const Sidebar = ({ isOpen }) => {
     if (user && user.role === 'blockHead' && user.assignedBlocks && user.assignedBlocks.length > 0) {
       user.assignedBlocks.forEach(block => {
         blockHeadLinks.push({
-          path: `/management/rooms/${block._id}`,
+          path: `/management/blocks/${block._id}/rooms`,
           icon: <FaDoorOpen />,
           label: `${block.name} Rooms`,
         });

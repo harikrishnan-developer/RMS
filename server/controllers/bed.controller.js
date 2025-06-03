@@ -199,25 +199,34 @@ exports.getBed = async (req, res) => {
 };
 
 // @desc    Create new bed
-// @route   POST /api/rooms/:roomId/beds
+// @route   POST /api/beds
 // @access  Private (System Admin only)
 exports.createBed = async (req, res) => {
   try {
-    req.body.room = req.params.roomId;
+    // Get room ID from request body
+    const roomId = req.body.room;
+    
+    if (!roomId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Room ID is required'
+      });
+    }
+    
     req.body.createdBy = req.user.id;
     
-    const room = await Room.findById(req.params.roomId);
+    const room = await Room.findById(roomId);
     
     if (!room) {
       return res.status(404).json({
         success: false,
-        message: `Room not found with id of ${req.params.roomId}`
+        message: `Room not found with id of ${roomId}`
       });
     }
     
     // Check if bed number already exists in this room
     const existingBed = await Bed.findOne({
-      room: req.params.roomId,
+      room: roomId,
       bedNumber: req.body.bedNumber
     });
     
@@ -504,6 +513,56 @@ exports.assignBed = async (req, res) => {
   }
 };
 
+// @desc    Get early vacate history
+// @route   GET /api/beds/early-vacate-history
+// @access  Private (Block Head, Admin)
+exports.getEarlyVacateHistory = async (req, res) => {
+  try {
+    console.log('Fetching early vacate history...');
+    
+    const beds = await Bed.find({
+      'earlyVacateHistory.0': { $exists: true }
+    }).populate({
+      path: 'room',
+      select: 'block number',
+      populate: {
+        path: 'block',
+        select: 'name'
+      }
+    });
+
+    console.log(`Found ${beds.length} beds with early vacate history`);
+
+    // Extract and format early vacate records
+    const earlyVacateRecords = beds.flatMap(bed => 
+      bed.earlyVacateHistory.map(record => ({
+        ...record.toObject(),
+        blockName: bed.room?.block?.name || 'Unknown Block',
+        roomNumber: bed.room?.number || 'Unknown Room',
+        bedNumber: bed.bedNumber
+      }))
+    );
+
+    console.log(`Total early vacate records: ${earlyVacateRecords.length}`);
+
+    // Sort by vacate date (most recent first)
+    earlyVacateRecords.sort((a, b) => new Date(b.vacateDate) - new Date(a.vacateDate));
+
+    res.status(200).json({
+      success: true,
+      count: earlyVacateRecords.length,
+      data: earlyVacateRecords
+    });
+  } catch (error) {
+    console.error('Error in getEarlyVacateHistory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Vacate a bed
 // @route   PUT /api/beds/:id/vacate
 // @access  Private (Block Head only)
@@ -528,20 +587,48 @@ exports.vacateBed = async (req, res) => {
         message: 'Bed is not currently occupied'
       });
     }
+
+    const updateData = {
+      status: 'Available',
+      updatedAt: Date.now()
+    };
+
+    // If early vacate data is provided, add it to history
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log('Early vacate data received:', req.body);
+      
+      const earlyVacateRecord = {
+        occupantName: bed.occupant.name,
+        originalCheckOutDate: bed.occupant.checkOutDate,
+        vacateDate: new Date(),
+        reason: req.body.reason,
+        contactName: req.body.contactName,
+        contactNumber: req.body.contactNumber,
+        notes: req.body.notes,
+        vacatedBy: req.user.id
+      };
+
+      console.log('Creating early vacate record:', earlyVacateRecord);
+      updateData.$push = { earlyVacateHistory: earlyVacateRecord };
+    }
+
+    // Clear occupant info
+    updateData.occupant = {};
     
-    // Update bed status and clear occupant info
+    // Update bed
     bed = await Bed.findByIdAndUpdate(
-      req.params.id, 
-      {
-        status: 'Available',
-        occupant: {},
-        updatedAt: Date.now()
-      },
+      req.params.id,
+      updateData,
       {
         new: true,
         runValidators: true
       }
-    );
+    ).populate({
+      path: 'room',
+      select: 'block'
+    });
+
+    console.log('Updated bed:', bed);
     
     // Update block's available beds count
     const block = await Block.findById(bed.room.block);
@@ -558,6 +645,7 @@ exports.vacateBed = async (req, res) => {
       data: bed
     });
   } catch (error) {
+    console.error('Error in vacateBed:', error);
     if (error.name === 'CastError') {
       return res.status(400).json({
         success: false,

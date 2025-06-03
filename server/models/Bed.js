@@ -36,6 +36,49 @@ const BedSchema = new mongoose.Schema({
       trim: true
     }
   },
+  earlyVacateHistory: [{
+    occupantName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    originalCheckOutDate: {
+      type: Date,
+      required: true
+    },
+    vacateDate: {
+      type: Date,
+      required: true
+    },
+    reason: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    contactName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    contactNumber: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    notes: {
+      type: String,
+      trim: true
+    },
+    vacatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    vacatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

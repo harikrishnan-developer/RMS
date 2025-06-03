@@ -29,7 +29,7 @@ exports.protect = async (req, res, next) => {
 
     } catch (parseError) {
         console.error('Auth Middleware: Error parsing user data from headers:', parseError);
-        return res.status(401).json({
+         return res.status(401).json({
             success: false,
             message: 'Not authorized: Invalid user data format'
         });
@@ -109,7 +109,7 @@ exports.authorize = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      console.log(`Auth Middleware: Authorization failed for user ${req.user.id} with role ${req.user.role}. Required roles: ${roles.join(', ')}`);
+       console.log(`Auth Middleware: Authorization failed for user ${req.user.id} with role ${req.user.role}. Required roles: ${roles.join(', ')}`);
       return res.status(403).json({
         success: false,
         message: `Forbidden: User role ${req.user.role} is not authorized to access this route`

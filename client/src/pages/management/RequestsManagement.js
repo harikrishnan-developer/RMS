@@ -125,9 +125,11 @@ const RequestsManagement = () => {
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h4 className="mb-0">Accommodation Requests</h4>
+            {user?.role === 'admin' && (
             <Button variant="primary" onClick={handleAddRequest}>
               <FaPlus className="me-1" /> New Request
             </Button>
+            )}
           </div>
 
           {error && <Alert variant="danger">{error}</Alert>}

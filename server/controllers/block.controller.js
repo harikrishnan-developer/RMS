@@ -75,36 +75,10 @@ exports.createBlock = async (req, res) => {
       });
     }
     
-    // Verify block head exists and has the right role
-    if (req.body.blockHead) {
-      const blockHead = await User.findById(req.body.blockHead);
-      if (!blockHead) {
-        return res.status(404).json({
-          success: false,
-          message: 'Block head user not found'
-        });
-      }
-      
-      if (blockHead.role !== 'blockHead') {
-        return res.status(400).json({
-          success: false,
-          message: 'Assigned user must have blockHead role'
-        });
-      }
-    }
-    
     // Add current user as creator
     req.body.createdBy = req.user.id;
     
     const block = await Block.create(req.body);
-    
-    // Add this block to the block head's assigned blocks
-    if (req.body.blockHead) {
-      await User.findByIdAndUpdate(
-        req.body.blockHead,
-        { $addToSet: { assignedBlocks: block._id } }
-      );
-    }
     
     res.status(201).json({
       success: true,
@@ -121,7 +95,7 @@ exports.createBlock = async (req, res) => {
 
 // @desc    Update block
 // @route   PUT /api/blocks/:id
-// @access  Private (System Admin only)
+// @access  Private (System Admin and Admin)
 exports.updateBlock = async (req, res) => {
   try {
     // Check if updating to a name that already exists
@@ -139,31 +113,50 @@ exports.updateBlock = async (req, res) => {
       }
     }
     
-    // Verify new block head exists and has the right role
-    if (req.body.blockHead) {
-      const blockHead = await User.findById(req.body.blockHead);
-      if (!blockHead) {
-        return res.status(404).json({
-          success: false,
-          message: 'Block head user not found'
-        });
-      }
-      
-      if (blockHead.role !== 'blockHead') {
-        return res.status(400).json({
-          success: false,
-          message: 'Assigned user must have blockHead role'
-        });
-      }
-      
-      // Get current block to check for block head change
-      const currentBlock = await Block.findById(req.params.id);
-      if (currentBlock && currentBlock.blockHead.toString() !== req.body.blockHead) {
-        // Remove this block from previous block head's assigned blocks
-        await User.findByIdAndUpdate(
-          currentBlock.blockHead,
-          { $pull: { assignedBlocks: req.params.id } }
-        );
+    // Get current block to check for block head change
+    const currentBlock = await Block.findById(req.params.id);
+    if (!currentBlock) {
+      return res.status(404).json({
+        success: false,
+        message: `Block not found with id of ${req.params.id}`
+      });
+    }
+
+    // Handle block head assignment/removal
+    if (req.body.blockHead !== undefined) {
+      // If removing block head
+      if (!req.body.blockHead) {
+        if (currentBlock.blockHead) {
+          // Remove this block from previous block head's assigned blocks
+          await User.findByIdAndUpdate(
+            currentBlock.blockHead,
+            { $pull: { assignedBlocks: req.params.id } }
+          );
+        }
+      } else {
+        // If assigning new block head
+        const blockHead = await User.findById(req.body.blockHead);
+        if (!blockHead) {
+          return res.status(404).json({
+            success: false,
+            message: 'Block head user not found'
+          });
+        }
+        
+        if (blockHead.role !== 'blockHead') {
+          return res.status(400).json({
+            success: false,
+            message: 'Assigned user must have blockHead role'
+          });
+        }
+
+        // If there was a previous block head, remove this block from their assigned blocks
+        if (currentBlock.blockHead) {
+          await User.findByIdAndUpdate(
+            currentBlock.blockHead,
+            { $pull: { assignedBlocks: req.params.id } }
+          );
+        }
         
         // Add this block to new block head's assigned blocks
         await User.findByIdAndUpdate(
@@ -176,17 +169,14 @@ exports.updateBlock = async (req, res) => {
     // Update timestamp
     req.body.updatedAt = Date.now();
     
-    const block = await Block.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
-    
-    if (!block) {
-      return res.status(404).json({
-        success: false,
-        message: `Block not found with id of ${req.params.id}`
-      });
-    }
+    const block = await Block.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).populate('blockHead', 'name email');
     
     res.status(200).json({
       success: true,

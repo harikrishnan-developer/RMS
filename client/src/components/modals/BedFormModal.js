@@ -1,44 +1,82 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Form, Modal } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
-import { createBed, fetchBedsByRoom, updateBed } from '../../redux/slices/bedSlice';
+import { assignBed, createBed, updateBed } from '../../redux/slices/bedSlice';
 
-const BedFormModal = ({ onClose, data }) => {
+const BedFormModal = ({ show, onClose, data }) => {
   const initialState = {
     bedNumber: '',
-    room: '',
-    status: 'Available'
+    status: 'Available',
+    occupant: {
+      name: '',
+      contactInfo: '',
+      checkInDate: '',
+      checkOutDate: '',
+      purpose: ''
+    }
   };
 
   const [formData, setFormData] = useState(initialState);
   const [validated, setValidated] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isAssignMode, setIsAssignMode] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [timeoutError, setTimeoutError] = useState(false);
+  const [error, setError] = useState(null);
 
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.beds);
+  const { loading, error: globalError } = useSelector((state) => state.beds);
 
   useEffect(() => {
-    if (data && data.bed) {
+    // Reset form when modal is shown for adding a new bed
+    if (show && !data?.bed) {
+        setFormData(initialState);
+        setValidated(false);
+        setIsEditMode(false);
+        setIsAssignMode(false);
+        setError(null);
+        setTimeoutError(false);
+    }
+    // Populate form data when modal is shown for editing or assigning
+    else if (show && data?.bed) {
       setFormData({
-        bedNumber: data.bed.bedNumber || '',
-        room: data.bed.room?._id || data.bed.room || '',
-        status: data.bed.status || 'Available'
+        ...data.bed,
+        occupant: data.bed.occupant || initialState.occupant
       });
       setIsEditMode(true);
-    } else if (data && data.roomId) {
-      // Pre-select room if creating from room details page
-      setFormData({
-        ...initialState,
-        room: data.roomId
-      });
+      setIsAssignMode(data?.mode === 'assign');
+      setValidated(false);
+      setError(null);
+      setTimeoutError(false);
     }
-  }, [data]);
+    // Reset form when modal is hidden
+    else if (!show) {
+        setFormData(initialState);
+        setValidated(false);
+        setIsEditMode(false);
+        setIsAssignMode(false);
+        setError(null);
+        setTimeoutError(false);
+    }
+  }, [show, data]); // Depend on show and data props
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    if (name.startsWith('occupant.')) {
+      const occupantField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        occupant: {
+          ...prev.occupant,
+          [occupantField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -51,28 +89,51 @@ const BedFormModal = ({ onClose, data }) => {
       return;
     }
 
+    setLocalLoading(true);
+    setTimeoutError(false);
+    setError(null); // Clear previous errors
+
+    // Set a timeout to handle long-running operations
+    const timeoutId = setTimeout(() => {
+      setTimeoutError(true);
+      setLocalLoading(false);
+    }, 10000); // 10 seconds timeout
+
     try {
-      // Ensure we have a valid room ID
-      const roomId = data.roomId;
-      if (!roomId) {
-        throw new Error('Room ID is required');
-      }
-
-      const bedData = {
-        ...formData,
-        room: roomId
-      };
-
-      if (isEditMode) {
-        await dispatch(updateBed({ id: data.bed._id, bedData })).unwrap();
+      let result;
+      if (isAssignMode && data?.bed?._id) {
+        result = await dispatch(assignBed({
+          bedId: data.bed._id,
+          occupantData: formData.occupant
+        })).unwrap();
+      } else if (isEditMode && data?.bed?._id) {
+        result = await dispatch(updateBed({
+          id: data.bed._id,
+          bedData: formData
+        })).unwrap();
+      } else if (data?.roomId || data?.room?._id) {
+        // Use either roomId from data or room._id
+        const roomId = data.roomId || data.room._id;
+        result = await dispatch(createBed({
+          ...formData,
+          room: roomId
+        })).unwrap();
       } else {
-        await dispatch(createBed(bedData)).unwrap();
-        // After creating a bed, fetch beds for the current room to update the list
-        dispatch(fetchBedsByRoom(roomId));
+        throw new Error('Missing required data for operation');
       }
+      
+      clearTimeout(timeoutId);
+      setLocalLoading(false);
+      // Close modal only on success
       onClose();
-    } catch (error) {
-      console.error('Error submitting bed form:', error);
+
+    } catch (err) {
+      console.error('Failed to save bed:', err);
+      clearTimeout(timeoutId);
+      setLocalLoading(false);
+      // Show error message to user
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save bed';
+      setError(errorMessage);
     }
   };
 
@@ -85,67 +146,142 @@ const BedFormModal = ({ onClose, data }) => {
     return `Room ${roomNumber || 'N/A'} (${blockName || 'N/A'})`;
   };
 
+  const isLoading = localLoading || loading;
+
   return (
-    <Modal show={true} onHide={onClose} centered>
+    <Modal show={show} onHide={onClose} centered>
       <Modal.Header closeButton>
-        <Modal.Title>{isEditMode ? 'Edit Bed' : 'Create New Bed'}</Modal.Title>
+        <Modal.Title>
+          {isAssignMode ? 'Assign Bed' : isEditMode ? 'Edit Bed' : 'Create New Bed'}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {error && (
-          <Alert variant="danger">{error.message || 'An error occurred'}</Alert>
+        {error && <Alert variant="danger">{error}</Alert>}
+        {timeoutError && (
+          <Alert variant="warning">
+            The operation is taking longer than expected. Please try again or contact support if the issue persists.
+          </Alert>
         )}
+        
         <Form noValidate validated={validated} onSubmit={handleSubmit}>
-          <Form.Group className="mb-3" controlId="bedNumber">
-            <Form.Label>Bed Number/Identifier</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter bed number (e.g., A, B, 1, 2)"
-              name="bedNumber"
-              value={formData.bedNumber}
-              onChange={handleChange}
-              required
-            />
-            <Form.Control.Feedback type="invalid">
-              Please provide a bed number or identifier.
-            </Form.Control.Feedback>
-          </Form.Group>
+          {!isAssignMode && (
+            <Form.Group className="mb-3" controlId="bedNumber">
+              <Form.Label>Bed Number</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter bed number"
+                name="bedNumber"
+                value={formData.bedNumber}
+                onChange={handleChange}
+                required
+                disabled={isEditMode}
+              />
+              <Form.Control.Feedback type="invalid">
+                Please provide a bed number.
+              </Form.Control.Feedback>
+            </Form.Group>
+          )}
 
-          <Form.Group className="mb-3" controlId="room">
-            <Form.Label>Room</Form.Label>
-            <Form.Control
-              type="text"
-              value={getRoomDisplay()}
-              disabled
-            />
-            <Form.Control.Feedback type="invalid">
-              Please select a room.
-            </Form.Control.Feedback>
-          </Form.Group>
+          {isAssignMode && (
+            <>
+              <Form.Group className="mb-3" controlId="occupantName">
+                <Form.Label>Occupant Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter occupant name"
+                  name="occupant.name"
+                  value={formData.occupant.name}
+                  onChange={handleChange}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  Please provide occupant name.
+                </Form.Control.Feedback>
+              </Form.Group>
 
-          <Form.Group className="mb-3" controlId="status">
-            <Form.Label>Status</Form.Label>
-            <Form.Select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              required
-            >
-              <option value="Available">Available</option>
-              <option value="Occupied">Occupied</option>
-              <option value="Under Maintenance">Under Maintenance</option>
-            </Form.Select>
-          </Form.Group>
+              <Form.Group className="mb-3" controlId="contactInfo">
+                <Form.Label>Contact Information</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter contact information"
+                  name="occupant.contactInfo"
+                  value={formData.occupant.contactInfo}
+                  onChange={handleChange}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  Please provide contact information.
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="checkInDate">
+                <Form.Label>Check-in Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="occupant.checkInDate"
+                  value={formData.occupant.checkInDate}
+                  onChange={handleChange}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  Please provide check-in date.
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="checkOutDate">
+                <Form.Label>Check-out Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="occupant.checkOutDate"
+                  value={formData.occupant.checkOutDate}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="purpose">
+                <Form.Label>Purpose of Stay</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  placeholder="Enter purpose of stay"
+                  name="occupant.purpose"
+                  value={formData.occupant.purpose}
+                  onChange={handleChange}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  Please provide purpose of stay.
+                </Form.Control.Feedback>
+              </Form.Group>
+            </>
+          )}
+
+          {!isAssignMode && (
+            <Form.Group className="mb-3" controlId="status">
+              <Form.Label>Status</Form.Label>
+              <Form.Select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                required
+              >
+                <option value="Available">Available</option>
+                <option value="Occupied">Occupied</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+              </Form.Select>
+            </Form.Group>
+          )}
 
           <div className="d-flex justify-content-end">
-            <Button variant="secondary" className="me-2" onClick={onClose}>
+            <Button 
+              variant="secondary" 
+              onClick={onClose} // Use the onClose prop to close the modal
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button 
-              variant="primary" 
-              type="submit" 
-              disabled={loading || !data?.room}
-            >
-              {loading ? 'Saving...' : (isEditMode ? 'Update Bed' : 'Create Bed')}
+            <Button variant="primary" type="submit" className="ms-2" disabled={isLoading}>
+              {isLoading ? 'Saving...' : isAssignMode ? 'Assign Bed' : isEditMode ? 'Save Changes' : 'Create Bed'}
             </Button>
           </div>
         </Form>

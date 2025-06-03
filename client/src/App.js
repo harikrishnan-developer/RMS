@@ -20,6 +20,7 @@ import Dashboard from './pages/dashboard/Dashboard';
 // Management Pages
 import BedsManagement from './pages/management/BedsManagement';
 import BlocksManagement from './pages/management/BlocksManagement';
+import CourseManagement from './pages/management/CourseManagement';
 import RequestsManagement from './pages/management/RequestsManagement';
 import RoomsManagement from './pages/management/RoomsManagement';
 import SelectRoomForBeds from './pages/management/SelectRoomForBeds';
@@ -93,15 +94,21 @@ function App() {
             element={<ProtectedRoute element={<BlocksManagement />} allowedRoles={['systemAdmin', 'admin']} />} 
           />
           <Route 
+            path="/management/blocks/:blockId/rooms" 
+            element={<ProtectedRoute element={<RoomsManagement />} allowedRoles={['systemAdmin', 'admin', 'blockHead']} />} 
+          />
+           <Route 
             path="/management/rooms" 
-            element={<ProtectedRoute element={<RoomsManagement />} allowedRoles={['systemAdmin', 'admin', 'blockHead']} />} 
+            element={<ProtectedRoute element={<RoomsManagement />} allowedRoles={['systemAdmin', 'admin']} />} 
           />
+          {/* Route for Course Management (System Admin only) */}
           <Route 
-            path="/management/rooms/:blockId" 
-            element={<ProtectedRoute element={<RoomsManagement />} allowedRoles={['systemAdmin', 'admin', 'blockHead']} />} 
+            path="/management/courses" 
+            element={<ProtectedRoute element={<CourseManagement />} allowedRoles={['systemAdmin']} />} 
           />
+          
           <Route 
-            path="/management/select-room-for-beds" 
+            path="/management/select-room-for-beds/:blockId?" 
             element={<ProtectedRoute element={<SelectRoomForBeds />} allowedRoles={['systemAdmin', 'admin', 'blockHead']} />}
           />
           <Route 
@@ -138,3 +145,4 @@ function App() {
 }
 
 export default App;
+

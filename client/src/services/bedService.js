@@ -11,7 +11,7 @@ const getBeds = async () => {
 
 // Get beds by room
 const getBedsByRoom = async (roomId) => {
-  const response = await api.get(`/rooms/${roomId}/beds`);
+  const response = await api.get(`${API_ENDPOINT}/room/${roomId}`);
   return response.data;
 };
 
@@ -23,20 +23,38 @@ const getBedById = async (bedId) => {
 
 // Create new bed
 const createBed = async (bedData) => {
-  const { room } = bedData;
-  const response = await api.post(`/rooms/${room}/beds`, bedData);
+  const response = await api.post(API_ENDPOINT, bedData);
   return response.data;
 };
 
 // Update bed
-const updateBed = async (bedId, bedData) => {
-  const response = await api.put(`${API_ENDPOINT}/${bedId}`, bedData);
+const updateBed = async (id, bedData) => {
+  const response = await api.put(`${API_ENDPOINT}/${id}`, bedData);
   return response.data;
 };
 
 // Delete bed
-const deleteBed = async (bedId) => {
-  const response = await api.delete(`${API_ENDPOINT}/${bedId}`);
+const deleteBed = async (id) => {
+  const response = await api.delete(`${API_ENDPOINT}/${id}`);
+  return response.data;
+};
+
+// Assign bed to occupant
+const assignBed = async (bedId, occupantData) => {
+  const response = await api.put(`${API_ENDPOINT}/${bedId}/assign`, occupantData);
+  return response.data;
+};
+
+// Vacate bed
+const vacateBed = async (bedId, earlyVacateData) => {
+  console.log('Service: Vacating bed with data:', { bedId, earlyVacateData });
+  const response = await api.put(`${API_ENDPOINT}/${bedId}/vacate`, earlyVacateData);
+  return response.data;
+};
+
+// Get early vacate history
+const getEarlyVacateHistory = async () => {
+  const response = await api.get(`${API_ENDPOINT}/early-vacate-history`);
   return response.data;
 };
 
@@ -46,7 +64,10 @@ const bedService = {
   getBedById,
   createBed,
   updateBed,
-  deleteBed
+  deleteBed,
+  assignBed,
+  vacateBed,
+  getEarlyVacateHistory
 };
 
 export default bedService;

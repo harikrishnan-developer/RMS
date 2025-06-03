@@ -7,83 +7,21 @@ const Bed = require('../models/Bed');
 // @access  Private
 exports.getRooms = async (req, res) => {
   try {
-    // Build query
-    let query;
-    
-    // Copy req.query
-    const reqQuery = { ...req.query };
-    
-    // Fields to exclude
-    const removeFields = ['select', 'sort', 'page', 'limit'];
-    
-    // Loop over removeFields and delete them from reqQuery
-    removeFields.forEach(param => delete reqQuery[param]);
-    
-    // Create query string
-    let queryStr = JSON.stringify(reqQuery);
-    
-    // Create operators ($gt, $gte, etc)
-    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
-    
-    // Finding resource
-    query = Room.find(JSON.parse(queryStr))
-      .populate({
-        path: 'block',
-        select: 'name type'
-      })
-      .populate({
-        path: 'createdBy',
-        select: 'name'
-      });
-    
-    // Select Fields
-    if (req.query.select) {
-      const fields = req.query.select.split(',').join(' ');
-      query = query.select(fields);
+    let query = Room.find().populate({
+      path: 'block',
+      select: 'name'
+    });
+
+    // Filter by block if blockId is provided in query params
+    if (req.query.block) {
+      query = query.where('block').equals(req.query.block);
     }
-    
-    // Sort
-    if (req.query.sort) {
-      const sortBy = req.query.sort.split(',').join(' ');
-      query = query.sort(sortBy);
-    } else {
-      query = query.sort('-createdAt');
-    }
-    
-    // Pagination
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 25;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const total = await Room.countDocuments(JSON.parse(queryStr));
-    
-    query = query.skip(startIndex).limit(limit);
-    
-    // Executing query
+
     const rooms = await query;
-    
-    // Pagination result
-    const pagination = {};
-    
-    if (endIndex < total) {
-      pagination.next = {
-        page: page + 1,
-        limit
-      };
-    }
-    
-    if (startIndex > 0) {
-      pagination.prev = {
-        page: page - 1,
-        limit
-      };
-    }
-    
+
     res.status(200).json({
       success: true,
       count: rooms.length,
-      pagination,
-      total,
       data: rooms
     });
   } catch (error) {
@@ -109,34 +47,52 @@ exports.getBlockRooms = async (req, res) => {
       });
     }
     
+    // Fetch rooms for the block
     const rooms = await Room.find({ block: req.params.blockId })
       .populate({
         path: 'block',
-        select: 'name type'
+        select: 'name type blockHead',
+        populate: {
+          path: 'blockHead',
+          select: 'name email'
+        }
       })
       .populate({
         path: 'createdBy',
         select: 'name'
       });
 
-    // Get bed counts for each room
-    const roomsWithBeds = await Promise.all(rooms.map(async (room) => {
-      const beds = await Bed.find({ room: room._id });
-      const totalBeds = beds.length;
-      const availableBeds = beds.filter(bed => bed.status === 'Available').length;
+    // Fetch beds for all rooms in this block and group them by room
+    const allBedsInBlock = await Bed.find({ room: { $in: rooms.map(room => room._id) } }).populate('occupant', 'name contactInfo checkInDate checkOutDate purpose');
 
+    const bedsByRoomId = allBedsInBlock.reduce((acc, bed) => {
+      if (!acc[bed.room]) {
+        acc[bed.room] = [];
+      }
+      acc[bed.room].push(bed);
+      return acc;
+    }, {});
+
+    const roomsWithBedDetails = rooms.map(room => {
       const roomObj = room.toObject();
+      const bedsForRoom = bedsByRoomId[room._id] || [];
+
+      // Add totalBeds and availableBeds counts and the beds array
+      const totalBeds = bedsForRoom.length;
+      const availableBeds = bedsForRoom.filter(bed => bed.status === 'Available').length;
+
       return {
         ...roomObj,
         totalBeds,
-        availableBeds
+        availableBeds,
+        beds: bedsForRoom // Include the beds array here
       };
-    }));
+    });
     
     res.status(200).json({
       success: true,
-      count: roomsWithBeds.length,
-      data: roomsWithBeds
+      count: roomsWithBedDetails.length,
+      data: roomsWithBedDetails
     });
   } catch (error) {
     if (error.name === 'CastError') {
@@ -146,6 +102,7 @@ exports.getBlockRooms = async (req, res) => {
       });
     }
     
+    console.error('Error in getBlockRooms:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -181,7 +138,7 @@ exports.getRoom = async (req, res) => {
     }
     
     // Get beds for this room
-    const beds = await Bed.find({ room: req.params.id });
+    const beds = await Bed.find({ room: req.params.id }).populate('occupant', 'name contactInfo checkInDate checkOutDate purpose');
     
     // Ensure block data is properly structured
     const roomData = {
@@ -311,6 +268,15 @@ exports.updateRoom = async (req, res) => {
       });
     }
     
+    // Update block's room counts if status changed (simplified - assuming status change only)
+    // A more robust approach would compare old and new status
+    const block = await Block.findById(room.block);
+    if (block) {
+       // Recalculate counts based on current rooms if needed, or adjust based on status change
+       // For simplicity here, we'll just save the block.
+       await block.save(); // Save to potentially trigger block stats update if implemented
+    }
+
     res.status(200).json({
       success: true,
       data: room
@@ -323,6 +289,7 @@ exports.updateRoom = async (req, res) => {
       });
     }
     
+    console.error('Error updating room:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

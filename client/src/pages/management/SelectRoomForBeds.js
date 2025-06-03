@@ -1,67 +1,98 @@
-import React, { useEffect } from 'react';
-import { Button, Card, Container, Table } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Card, Col, Container, Form, InputGroup, Row, Table } from 'react-bootstrap';
+import { FaSearch } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { fetchRooms } from '../../redux/slices/roomSlice'; // Assuming fetchRooms exists
+import { fetchRooms, resetRoomState } from '../../redux/slices/roomSlice';
 
 const SelectRoomForBeds = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { blockId } = useParams();
+
   const { rooms, loading, error } = useSelector((state) => state.rooms);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Fetch all rooms if they are not already loaded
-    if (!rooms || rooms.length === 0) {
-      dispatch(fetchRooms());
-    }
-  }, [dispatch, rooms]);
+    dispatch(fetchRooms({ blockId }));
+    return () => {
+      dispatch(resetRoomState());
+    };
+  }, [dispatch, blockId]);
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  const handleSelectRoom = (roomId) => {
+    navigate(`/management/beds/${roomId}`);
+  };
 
-  if (error) {
-    return <div className="alert alert-danger">Error loading rooms: {error}</div>;
-  }
+  const filteredRooms = rooms.filter(room =>
+    room.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    room.block?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  console.log('Rooms state:', rooms);
+  console.log('Filtered rooms:', filteredRooms);
+
+  if (loading) return <LoadingSpinner />;
 
   return (
-    <Container>
+    <Container fluid>
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          <h4 className="mb-4">Select Room to Manage Beds</h4>
-          {rooms && rooms.length > 0 ? (
+          <h4 className="mb-4">Select a Room to Manage Beds</h4>
+
+          {error && <Alert variant="danger">{error}</Alert>}
+
+          <Row className="mb-3">
+            <Col>
+              <InputGroup>
+                <InputGroup.Text>
+                  <FaSearch />
+                </InputGroup.Text>
+                <Form.Control
+                  placeholder="Search by room number or block name"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+            </Col>
+          </Row>
+
+          <div className="table-responsive">
             <Table striped hover>
               <thead>
                 <tr>
+                  <th>Block Name</th>
                   <th>Room Number</th>
-                  <th>Room Type</th>
-                  <th>Block</th>
-                  <th>Action</th>
+                  <th>Capacity</th>
+                  <th>Occupied</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {rooms.map(room => (
+                {filteredRooms.map((room) => (
                   <tr key={room._id}>
-                    <td>{room.number}</td>
-                    <td>{room.type}</td>
                     <td>{room.block?.name || 'N/A'}</td>
+                    <td>{room.number}</td>
+                    <td>{room.capacity}</td>
+                    <td>{room.occupiedBedsCount || 0}</td>
                     <td>
-                      <Button 
-                        as={Link} 
-                        to={`/management/beds/${room._id}`} 
-                        variant="primary" 
-                        size="sm"
-                      >
+                      <Button variant="primary" size="sm" onClick={() => handleSelectRoom(room._id)}>
                         Manage Beds
                       </Button>
                     </td>
                   </tr>
                 ))}
+                {filteredRooms.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan="5" className="text-center py-4">
+                      No rooms found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </Table>
-          ) : (
-            <p>No rooms found. Please add rooms first.</p>
-          )}
+          </div>
         </Card.Body>
       </Card>
     </Container>

@@ -20,8 +20,7 @@ const BlockSchema = new mongoose.Schema({
   },
   blockHead: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Please assign a block head']
+    ref: 'User'
   },
   totalRooms: {
     type: Number,

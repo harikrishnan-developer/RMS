@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import bedReducer from './slices/bedSlice';
 import blockReducer from './slices/blockSlice';
+import courseReducer from './slices/courseSlice';
 import notificationReducer from './slices/notificationSlice';
 import requestReducer from './slices/requestSlice';
 import roomReducer from './slices/roomSlice';
@@ -19,7 +20,8 @@ export const store = configureStore({
     requests: requestReducer,
     stats: statsReducer,
     notifications: notificationReducer,
-    ui: uiReducer
+    ui: uiReducer,
+    courses: courseReducer
   }
 });
 

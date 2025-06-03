@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Block = require('../models/Block');
+const bcrypt = require('bcrypt');
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -114,22 +115,36 @@ exports.updateUser = async (req, res, next) => {
       }
     }
     
-    // Don't allow password updates through this route
-    if (req.body.password) {
-      delete req.body.password;
+    // Only allow updating name, email, password, and role (for system admins)
+    const allowedUpdates = ['name', 'email', 'password', 'role'];
+    const updates = {};
+    
+    Object.keys(req.body).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updates[key] = req.body[key];
     }
+    });
     
     // Handle profile picture upload
     if (req.file) {
-      // Assume multer is configured to save to req.file
-      user.profilePicture = `/uploads/${req.file.filename}`;
+      updates.profilePicture = `/uploads/${req.file.filename}`;
     }
 
-    // Update other fields
-    user.name = req.body.name || user.name; // Update name if provided
-    user.email = req.body.email || user.email; // Update email if provided
+    // If password is being updated, hash it
+    if (updates.password) {
+      const salt = await bcrypt.genSalt(10);
+      updates.password = await bcrypt.hash(updates.password, salt);
+    }
 
-    await user.save();
+    // Update user
+    user = await User.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
     
     res.status(200).json({
       success: true,

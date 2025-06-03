@@ -25,14 +25,24 @@ const RoomsManagement = () => {
   const { currentBlock: block, blocks, loading: blockLoading, error: blockError } = useSelector((state) => state.blocks);
   const { user } = useSelector((state) => state.auth);
   
+  // Redirect block head to their assigned block's rooms if no blockId is in URL
+  useEffect(() => {
+    if (user?.role === 'blockHead' && user?.block?._id && !blockId) {
+      navigate(`/management/blocks/${user.block._id}/rooms`, { replace: true });
+    }
+  }, [user, blockId, navigate]);
+  
   useEffect(() => {
     if (blockId) {
       dispatch(fetchRoomsByBlock(blockId));
       dispatch(fetchBlockById(blockId));
     } else {
+      // Only fetch all blocks if not a block head or block head without assigned block
+      if (!(user?.role === 'blockHead' && user?.block?._id)) {
       dispatch(fetchBlocks());
+      }
     }
-  }, [dispatch, blockId]);
+  }, [dispatch, blockId, user]);
 
   useEffect(() => {
     // Filter rooms based on search term
@@ -44,9 +54,12 @@ const RoomsManagement = () => {
             room.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
             room.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
             room.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (room.description && room.description.toLowerCase().includes(searchTerm.toLowerCase()))
+            (room.description && room.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (room.amenities && room.amenities.join(', ').toLowerCase().includes(searchTerm.toLowerCase()))
         )
       );
+    } else {
+       setFilteredRooms([]);
     }
   }, [rooms, searchTerm]);
 
@@ -92,7 +105,7 @@ const RoomsManagement = () => {
   };
 
   const getAvailabilityBadge = (available, total) => {
-    if (!available || !total) return <Badge bg="secondary">0/0</Badge>;
+    if (available === undefined || total === undefined) return <Badge bg="secondary">N/A</Badge>;
     if (available === 0) {
       return <Badge bg="danger">{available}/{total}</Badge>;
     } else if (available === total) {
@@ -102,9 +115,16 @@ const RoomsManagement = () => {
     }
   };
 
+  // Render different UI based on whether blockId is provided or if the user is a block head
+  if (user?.role === 'blockHead' && user?.block?._id && !blockId) {
+     // We are redirecting, show a loading spinner or null
+     return <LoadingSpinner />;
+  }
+
+
   if (blockLoading || roomsLoading) return <LoadingSpinner />;
 
-  // If no blockId is provided, show the blocks list
+  // If no blockId is provided (and not a block head being redirected), show the blocks list
   if (!blockId) {
     return (
       <Container fluid>
@@ -126,7 +146,7 @@ const RoomsManagement = () => {
                         <p className="text-muted">{block.type}</p>
                         <Button
                           variant="primary"
-                          onClick={() => navigate(`/management/rooms/${block._id}`)}
+                          onClick={() => navigate(`/management/blocks/${block._id}/rooms`)}
                         >
                           Manage Rooms
                         </Button>
@@ -161,13 +181,13 @@ const RoomsManagement = () => {
               </h4>
             </div>
             {user?.role === 'systemAdmin' && (
-              <Button 
-                variant="primary" 
-                onClick={handleAddRoom}
-                disabled={!block?.data || blockLoading}
-              >
-                <FaPlus className="me-1" /> Add Room
-              </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleAddRoom}
+              disabled={!block?.data || blockLoading}
+            >
+              <FaPlus className="me-1" /> Add Room
+            </Button>
             )}
           </div>
 
@@ -211,54 +231,73 @@ const RoomsManagement = () => {
             <Table striped hover>
               <thead>
                 <tr>
-                  <th>Room No.</th>
+                  <th>Room Number</th>
                   <th>Type</th>
-                  <th>Capacity</th>
                   <th>Status</th>
                   <th>Beds (Available/Total)</th>
-                  <th>Price/Day</th>
+                  <th>Occupants</th>
+                  <th>Price Per Day</th>
                   <th>Amenities</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRooms && filteredRooms.length > 0 ? (
-                  filteredRooms.map((room) => (
+                {filteredRooms.map((room) => (
                     <tr key={room._id}>
                       <td>{room.number}</td>
                       <td>{room.type}</td>
-                      <td>{room.capacity}</td>
                       <td>{getStatusBadge(room.status)}</td>
                       <td>{getAvailabilityBadge(room.availableBeds, room.totalBeds)}</td>
-                      <td>₹{room.pricePerDay}</td>
-                      <td>{room.amenities ? room.amenities.join(', ') : 'N/A'}</td>
-                      <td>
-                        <Link to={`/management/beds/${room._id}`} className="btn btn-outline-info btn-sm me-1">
-                          <FaBed title="Manage Beds" />
-                        </Link>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          className="me-1"
-                          onClick={() => handleEditRoom(room)}
-                        >
-                          <FaEdit title="Edit Room" />
-                        </Button>
-                        {user?.role === 'systemAdmin' && (
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleDeleteClick(room)}
-                          >
-                            <FaTrash title="Delete Room" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+                    <td>
+                      {room.beds?.filter(bed => bed.status === 'Occupied').map(bed => (
+                        <div key={bed._id} className="mb-1">
+                          <small>
+                            <strong>Bed {bed.number}:</strong> {bed.occupant?.name}
+                            <br />
+                            <span className="text-muted">
+                              Check-in: {new Date(bed.occupant?.checkInDate).toLocaleDateString()}
+                              {bed.occupant?.checkOutDate && (
+                                <> | Check-out: {new Date(bed.occupant?.checkOutDate).toLocaleDateString()}</>
+                              )}
+                            </span>
+                          </small>
+                        </div>
+                      ))}
+                      {(!room.beds || room.beds.filter(bed => bed.status === 'Occupied').length === 0) && (
+                        <small className="text-muted">No occupants</small>
+                      )}
+                    </td>
+                    <td>{room.pricePerDay || 'N/A'}</td>
+                    <td>{room.amenities?.join(', ') || 'N/A'}</td>
+                    <td>
+                      <Link to={`/management/beds/${room._id}`} className="btn btn-outline-info btn-sm me-1">
+                        <FaBed title="Manage Beds" />
+                      </Link>
+                    {user?.role === 'systemAdmin' && (
+                      <>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-1"
+                        onClick={() => handleEditRoom(room)}
+                      >
+                        <FaEdit title="Edit Room" />
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeleteClick(room)}
+                      >
+                        <FaTrash title="Delete Room" />
+                      </Button>
+                      </>
+                    )}
+                    </td>
+                  </tr>
+                ))}
+                {filteredRooms.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="text-center">
+                    <td colSpan="8" className="text-center py-4">
                       No rooms found
                     </td>
                   </tr>
@@ -273,7 +312,7 @@ const RoomsManagement = () => {
       {showRoomModal && (
         <RoomFormModal 
           onClose={() => setShowRoomModal(false)} 
-          data={selectedRoom ? { room: selectedRoom } : { blockId }}
+          data={selectedRoom ? { room: selectedRoom } : { blockId: blockId || user?.block?._id }}
         />
       )}
 

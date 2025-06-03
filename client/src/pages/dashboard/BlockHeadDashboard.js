@@ -1,53 +1,95 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Card, Col, Row } from 'react-bootstrap';
-import { FaBed, FaDoorOpen, FaPlus } from 'react-icons/fa';
+import React, { useEffect } from 'react';
+import { Alert, Badge, Button, Card, Col, Container, Row } from 'react-bootstrap';
+import { FaBed, FaBell, FaDoorOpen, FaHourglassHalf } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import RequestFormModal from '../../components/modals/RequestFormModal';
+import EarlyVacateHistory from '../../components/dashboard/EarlyVacateHistory';
 import { fetchBlockHeadStats } from '../../redux/slices/statsSlice';
 
 const BlockHeadDashboard = () => {
   const dispatch = useDispatch();
   const { blockHeadStats: stats, loading, error } = useSelector((state) => state.stats);
-  const [showRequestModal, setShowRequestModal] = useState(false);
+  const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(fetchBlockHeadStats());
   }, [dispatch]);
+
+  // Calculate total stats from assigned blocks with validation
+  const totalStats = user?.assignedBlocks?.reduce((acc, block) => {
+    const totalBeds = Math.max(0, block.totalBeds || 0);
+    const availableBeds = Math.min(totalBeds, Math.max(0, block.availableBeds || 0));
+    const totalRooms = Math.max(0, block.totalRooms || 0);
+    const availableRooms = Math.min(totalRooms, Math.max(0, block.availableRooms || 0));
+
+    return {
+      totalRooms: (acc.totalRooms || 0) + totalRooms,
+      totalBeds: (acc.totalBeds || 0) + totalBeds,
+      availableBeds: (acc.availableBeds || 0) + availableBeds,
+      availableRooms: (acc.availableRooms || 0) + availableRooms
+    };
+  }, {}) || {};
+
+  // Calculate occupied beds (ensure it's not negative)
+  const occupiedBeds = Math.max(0, totalStats.totalBeds - totalStats.availableBeds);
+  const occupiedRooms = Math.max(0, totalStats.totalRooms - totalStats.availableRooms);
 
   if (loading) {
     return <LoadingSpinner />;
   }
 
   return (
-    <>
+    <Container fluid>
+      <Row className="mb-4">
+        <Col>
+          <h4>Block Head Dashboard</h4>
+        </Col>
+      </Row>
+
       <Row className="mb-4">
         <Col lg={12}>
           <Card className="shadow-sm">
             <Card.Body>
               <h4>Block Head Dashboard</h4>
               <p className="text-muted">
-                Welcome to your block management dashboard. Here you can manage rooms, beds, and handle accommodation requests.
+                Welcome to your block management dashboard. Here you can review and manage accommodation requests for your block.
               </p>
-              <div className="mt-3">
-                <Button variant="primary" size="sm" onClick={() => setShowRequestModal(true)}>
-                  <FaPlus className="me-1" /> Create New Request
-                </Button>
-              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Request Form Modal */}
-      {showRequestModal && (
-        <RequestFormModal
-          show={showRequestModal}
-          onClose={() => setShowRequestModal(false)}
-          data={null}
-        />
-      )}
+      {/* Notifications Section */}
+        <Row className="mb-4">
+          <Col lg={12}>
+          <Card className="shadow-sm">
+            <Card.Header className="d-flex align-items-center">
+              <FaBell className="me-2" />
+              <h5 className="mb-0">Notifications</h5>
+            </Card.Header>
+            <Card.Body>
+              {stats?.pendingRequests > 0 ? (
+                <Alert variant="warning" className="d-flex align-items-center">
+                  <FaHourglassHalf className="me-2" />
+                  <div>
+                    <strong>{stats.pendingRequests}</strong> pending accommodation requests require your attention.
+              <div className="mt-2">
+                      <Button as={Link} to="/management/requests?status=Pending" variant="warning" size="sm">
+                  Review Requests
+                </Button>
+              </div>
+                  </div>
+                </Alert>
+              ) : (
+                <Alert variant="info">
+                  No pending requests at this time.
+            </Alert>
+              )}
+            </Card.Body>
+          </Card>
+          </Col>
+        </Row>
 
       <Row className="mb-4">
         {/* Rooms Summary Card */}
@@ -65,21 +107,23 @@ const BlockHeadDashboard = () => {
               <Card.Text>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Total Rooms:</span>
-                  <Badge bg="info">{stats?.totalRooms || 0}</Badge>
+                  <Badge bg="info">{totalStats.totalRooms}</Badge>
                 </div>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Available:</span>
-                  <Badge bg="success">{stats?.availableRooms || 0}</Badge>
+                  <Badge bg="success">{totalStats.availableRooms}</Badge>
                 </div>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Occupied:</span>
-                  <Badge bg="danger">{stats?.totalRooms - stats?.availableRooms || 0}</Badge>
+                  <Badge bg="danger">{occupiedRooms}</Badge>
                 </div>
               </Card.Text>
               <div className="mt-auto pt-2">
-                <Button as={Link} to="/management/rooms" variant="outline-primary" size="sm">
+                {user?.assignedBlocks?.length > 0 && (
+                  <Button as={Link} to={`/management/blocks/${user.assignedBlocks[0]._id}/rooms`} variant="outline-primary" size="sm">
                   Manage Rooms
                 </Button>
+                )}
               </div>
             </Card.Body>
           </Card>
@@ -100,21 +144,23 @@ const BlockHeadDashboard = () => {
               <Card.Text>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Total Beds:</span>
-                  <Badge bg="info">{stats?.totalBeds || 0}</Badge>
+                  <Badge bg="info">{totalStats.totalBeds}</Badge>
                 </div>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Available:</span>
-                  <Badge bg="success">{stats?.availableBeds || 0}</Badge>
+                  <Badge bg="success">{totalStats.availableBeds}</Badge>
                 </div>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Occupied:</span>
-                  <Badge bg="danger">{stats?.totalBeds - stats?.availableBeds || 0}</Badge>
+                  <Badge bg="danger">{occupiedBeds}</Badge>
                 </div>
               </Card.Text>
               <div className="mt-auto pt-2">
-                <Button as={Link} to="/management/rooms" variant="outline-success" size="sm">
+                 {user?.assignedBlocks?.length > 0 && (
+                  <Button as={Link} to={`/management/blocks/${user.assignedBlocks[0]._id}/rooms`} variant="outline-success" size="sm">
                   Manage Beds
                 </Button>
+                )}
               </div>
             </Card.Body>
           </Card>
@@ -144,26 +190,36 @@ const BlockHeadDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td>{stats?.blocks?.join(', ') || 'No blocks assigned'}</td>
-                        <td>{stats?.totalRooms || 0}</td>
-                        <td>{stats?.availableRooms || 0}</td>
-                        <td>{stats?.totalBeds || 0}</td>
-                        <td>{stats?.availableBeds || 0}</td>
-                        <td>
-                          <div className="progress" style={{ height: '10px' }}>
-                            <div 
-                              className={`progress-bar ${stats?.occupancyRate >= 90 ? 'bg-danger' : stats?.occupancyRate >= 70 ? 'bg-warning' : 'bg-success'}`}
-                              role="progressbar"
-                              style={{ width: `${stats?.occupancyRate || 0}%` }}
-                              aria-valuenow={stats?.occupancyRate || 0}
-                              aria-valuemin="0"
-                              aria-valuemax="100"
-                            ></div>
-                          </div>
-                          <small>{(stats?.occupancyRate || 0).toFixed(0)}%</small>
-                        </td>
-                      </tr>
+                      {user?.assignedBlocks?.map((block) => {
+                        const totalBeds = Math.max(0, block.totalBeds || 0);
+                        const availableBeds = Math.min(totalBeds, Math.max(0, block.availableBeds || 0));
+                        const totalRooms = Math.max(0, block.totalRooms || 0);
+                        const availableRooms = Math.min(totalRooms, Math.max(0, block.availableRooms || 0));
+                        const occupancyRate = totalBeds > 0 ? ((totalBeds - availableBeds) / totalBeds) * 100 : 0;
+
+                        return (
+                          <tr key={block._id}>
+                            <td>{block.name}</td>
+                            <td>{totalRooms}</td>
+                            <td>{availableRooms}</td>
+                            <td>{totalBeds}</td>
+                            <td>{availableBeds}</td>
+                            <td>
+                              <div className="progress" style={{ height: '10px' }}>
+                                <div 
+                                  className={`progress-bar ${occupancyRate >= 90 ? 'bg-danger' : occupancyRate >= 70 ? 'bg-warning' : 'bg-success'}`}
+                                  role="progressbar"
+                                  style={{ width: `${occupancyRate}%` }}
+                                  aria-valuenow={occupancyRate}
+                                  aria-valuemin="0"
+                                  aria-valuemax="100"
+                                ></div>
+                              </div>
+                              <small>{occupancyRate.toFixed(0)}%</small>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -172,7 +228,21 @@ const BlockHeadDashboard = () => {
           </Card>
         </Col>
       </Row>
-    </>
+
+      {/* Early Vacate History Section */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="shadow-sm">
+            <Card.Header className="bg-white">
+              <h5 className="mb-0">Early Vacate Records</h5>
+            </Card.Header>
+            <Card.Body>
+              <EarlyVacateHistory />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
 };
 
